@@ -120,6 +120,7 @@ def extract(fichierTDMS, sr, select=slice(0,16), offset=0, selectGroupe = 0, chu
         """
         fonction interne, ne pas utiliser
         """
+        # si offset > len(data), crash, c'est un feature
         for j, data in enumerate(dataIterChunks) :
             nbrPoint = len(data)
             timeStamp = nbrPoint/sr
@@ -127,7 +128,6 @@ def extract(fichierTDMS, sr, select=slice(0,16), offset=0, selectGroupe = 0, chu
             offset = offset if j == 0 else 0
             time = np.linspace( j*timeStamp, (j+1)*timeStamp, nbrPoint )
 
-            #print(time)
             yield data[offset:], time[offset:]
 
     channelIter, nbrChannel = tdmsRead(fichierTDMS, select, selectGroupe, chunks)
