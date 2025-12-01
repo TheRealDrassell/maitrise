@@ -88,7 +88,7 @@ def tdmsRead(fichierTDMS, select, selectGroupe, chunks) : # toujours 16?
     return iter(dataIter), len(dataIter)
 
 
-def extract(fichierTDMS, sr, select=slice(0,16), selectGroupe = 0, chunks = False) :
+def extract(fichierTDMS, sr, select=slice(0,16), offset=0, selectGroupe = 0, chunks = False) :
     """
     - wrapper de tdmsRead, retourne le data de channels voulus selon plusieurs options 
 
@@ -96,6 +96,7 @@ def extract(fichierTDMS, sr, select=slice(0,16), selectGroupe = 0, chunks = Fals
         - string fichierTDMS : fichier.tdms
         - int sr : sample rate
         - auto select = slice(0,16) : slice, list ou int des indices des channels voulus
+        - int offset = 0, offset de combien sur la première mesure
         - int selectGroupe = 0 : indice du groupe voulus
         - bool chunks = False : retourn les channels en generator data_chunks
 
@@ -104,36 +105,38 @@ def extract(fichierTDMS, sr, select=slice(0,16), selectGroupe = 0, chunks = Fals
         - int nbrData : nbr de channels
     """
 
-    def dataWrap(dataIter, sr) :    # data._length
+    def dataWrap(dataIter, sr, offset) :    # data._length
         """
         fonction interne, ne pas utiliser
         """
 
         for data in dataIter :
+
             nbrPoint = data._length
             fin = nbrPoint/sr
-            yield data[:], np.linspace(0, fin, nbrPoint)
+            yield data[offset:], np.linspace(offset/sr, fin, nbrPoint-offset)
 
-    def dataWrapChunks(dataIterChunks, sr) :  # nécessaire????  Oui? len vs ._length ?
+    def dataWrapChunks(dataIterChunks, sr, offset) :  # nécessaire????  Oui? len vs ._length ?
         """
         fonction interne, ne pas utiliser
         """
-
         for j, data in enumerate(dataIterChunks) :
             nbrPoint = len(data)
             timeStamp = nbrPoint/sr
 
+            offset = offset if j == 0 else 0
             time = np.linspace( j*timeStamp, (j+1)*timeStamp, nbrPoint )
+
             #print(time)
-            yield data[:], time
+            yield data[offset:], time[offset:]
 
     channelIter, nbrChannel = tdmsRead(fichierTDMS, select, selectGroupe, chunks)
 
     if not chunks :
         #dataZip = dataWrap(channelIter, sr)
-        dataZip = iter([ dataWrap([i], sr) for i in channelIter ])
+        dataZip = iter([ dataWrap([i], sr, offset) for i in channelIter ])
     else :
-        dataZip = iter([dataWrapChunks(i, sr) for i in channelIter])
+        dataZip = iter([dataWrapChunks(i, sr, offset) for i in channelIter])
 
     return dataZip, nbrChannel
 
@@ -146,10 +149,10 @@ def test() :
 
     sr = int(1e4)
 
-    print(help(tdmsRead))
+    #print(help(tdmsRead))
 
-    dataIter, nbrData = extract(fichier, sr, [0,3], 0, chunks=True)   # si chunk de plusieurs, vraiment bon?
-    dataIter2, nbrData2 = extract(fichier, sr, [0,3], 0, chunks=False)   # si chunk de plusieurs, vraiment bon?
+    dataIter, nbrData = extract(fichier, sr, [0,3], offset=0, chunks=False)   # si chunk de plusieurs, vraiment bon?
+    dataIter2, nbrData2 = extract(fichier, sr, [0,3], offset=100, chunks=False)   # si chunk de plusieurs, vraiment bon?
     # regarder si possible de diviser en plusieurs generator
 
     #for data, time in dataZip :
@@ -163,6 +166,26 @@ def test() :
     #        data1 = np.concatenate((data1, i))
 
     #    print(np.all(data1 == data2))   # True!!!
+    dataZip1 = list(dataIter)[1]
+    dataZip2 = list(dataIter2)[1]
+
+    for data, time in dataZip1 :
+        plt.plot(time, data)
+
+        a = data
+
+    for data, time in dataZip2 :
+        plt.plot(time, data)
+
+        b = data
+
+
+    plt.show()
+
+
+    print(np.all( a[100:] == b ))
+
+
     
 
     """
