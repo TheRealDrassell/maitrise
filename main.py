@@ -6,7 +6,7 @@ from tdmsRead import extract
 from scipy.signal import find_peaks
 
 def derv4(y, h = 1) :
-    return (-y[:-4] + 8*y[1:-3] - 8 * y[3:-1] + y[4:])/(12*h)
+    return -(-y[:-4] + 8*y[1:-3] - 8 * y[3:-1] + y[4:])/(12*h)
 
 def dataWrap(dataIter, sr) :
     for i in dataIter :

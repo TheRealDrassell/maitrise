@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 
 from tdmsRead import extract
+from main import derv4
 
 def test() :
     fichier = "../alcheData/2025-06-06_JN_Gquadexp1/DNA_10mKCl/DNA_KCl_10mM_SR1e4_500kOmhsVg0_1_long.tdms"
@@ -74,43 +75,87 @@ def test2() :
     dataIter, nbrData = extract(fichier, sr, 3, offset=100, chunks=False)
     dataZip = list(dataIter)[0]
 
-    windowS = 5
+    windowS = 20
 
     fig = plt.figure()
     ax = fig.add_subplot(211)
     ax2 = fig.add_subplot(212, sharex=ax)
+    #ax3 = fig.add_subplot(413, sharex=ax)
+    #ax4 = fig.add_subplot(414, sharex=ax)
+
     for data, time in dataZip :
+
+        derv = derv4(data)
+        dervTime = time[2:-2]
 
         rollingData = np.lib.stride_tricks.sliding_window_view(data, windowS)
         rollingTime = np.lib.stride_tricks.sliding_window_view(time, windowS)
 
+        rollingDerv = np.lib.stride_tricks.sliding_window_view(np.abs(derv)*3, windowS)
+        rollingDervTime = np.lib.stride_tricks.sliding_window_view(dervTime, windowS)
+
         rollingVar = np.var(rollingData, axis=1)
+        rollingVarDerv = np.var(rollingDerv, axis=1)
+
+        moyVar = np.mean(rollingVar)
+        stdVar = np.std(rollingVar)
 
         ax.plot(time, data)
-        #ax2.plot(time[windowS-1:], rollingVar)
+        ax2.plot(time[:-(windowS-1)], rollingVar)
+        #ax3.plot(dervTime, derv)
+        #ax4.plot(dervTime[windowS -1:], rollingVarDerv)
 
-        eps = 0.85e-15
+        ax2.axhline(moyVar, color="k")
+        ax2.axhline(moyVar+stdVar*6, ls=":", color="k")
+
+        #eps = 0.85e-15
+        eps = 1e-15
+        #eps = moyVar + stdVar*6
         peaks = np.where(rollingVar > eps)
-        peaks2, _ = find_peaks(rollingVar, height=eps)
-        print(peaks2.size)
+        peaks2, _ = find_peaks(rollingVar, height=eps, width=2)
+        ax2.axhline(eps, ls=":", color="red")
+        #print(peaks2.size)
 
-        upDown = np.arange(peaks2.size)%2
+        #upDown = np.arange(peaks2.size)%2
 
-        gauche = time[windowS -1:][peaks2][:-1]  # aye....
-        droite = time[windowS -1:][peaks2][1:] 
+        #gauche = time[windowS -1:][peaks2][:-1]  # aye....
+        #droite = time[windowS -1:][peaks2][1:] 
 
-        upda = np.vstack((upDown, upDown)).T.ravel()[:-1]
-        upTime = np.vstack( (gauche, droite) ).T.ravel()
-        upTime = np.append( upTime, droite[-1] )
+        #upda = np.vstack((upDown, upDown)).T.ravel()[:-1]
+        #upTime = np.vstack( (gauche, droite) ).T.ravel()
+        #upTime = np.append( upTime, droite[-1] )
 
-        print(upTime[::-1])
-        print(peaks2)
+        #print(upTime[::-1])
+        #print(peaks2)
 
-        #ax2.plot(time[windowS-1:][peaks2], rollingVar[peaks2], ls="", marker="x", markersize=1, color="red")
+        ax2.plot(time[:-( windowS-1 )][peaks2], rollingVar[peaks2], ls="", marker="x", markersize=1, color="red")
         #ax2.plot(time[windowS-1:][peaks2], upDown)
-        ax2.plot(upTime, upda)
-        ax.vlines(time[windowS-1:][peaks2], 6e-7, 9.5e-7, ls=":", color="k")
+        #ax2.plot(upTime, upda)
+        ax.vlines(time[:-( windowS-1 )][peaks2], 6e-7, 9.5e-7, ls=":", color="k")
 
+        #break
+
+
+    fig.tight_layout()
+    plt.show()
+
+def test3() :
+    fichier = "../alcheData/2025-06-06_JN_Gquadexp1/DNA_10mKCl/DNA_KCl_10mM_SR1e4_500kOmhsVg0_1_long.tdms"
+    #fichier = "../alcheData/2025-07-29_JN_Gquadexp4/10mM_KCl/10mMKCl_SR1e4_4h.tdms"
+    sr = int(1e4)
+
+    dataIter, nbrData = extract(fichier, sr, [3, 1], offset=100, chunks=False)
+    dataZip = list(dataIter)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(211)
+    ax2 = fig.add_subplot(212, sharex=ax)
+
+    data, time = next(dataZip[0])
+    ax.plot(time, data)
+
+    data, time = next(dataZip[1])
+    ax2.plot(time, data)
 
     plt.show()
 
