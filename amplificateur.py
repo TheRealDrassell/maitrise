@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.signal import find_peaks
+
 from tdmsRead import extract
 
 def test() :
@@ -17,8 +19,8 @@ def test() :
     #next(dataZip)
 
     fig = plt.figure()
-    ax = fig.add_subplot()
-    #ax2 = fig.add_subplot(212)
+    ax = fig.add_subplot(211)
+    ax2 = fig.add_subplot(212, sharex=ax)
 
     j = 0
     for data, time in dataZip :
@@ -44,12 +46,12 @@ def test() :
         indxTime = peaks * fenetre
 
         ax.plot(time, data, color="tab:blue")
-        for i in indxTime :
-            ax.axvline(time[i], ls=":", color="k")
-        ax.plot(time[::fenetre], moy.ravel(), color="tab:orange")
+        #for i in indxTime :
+        #    ax.axvline(time[i], ls=":", color="k")
+        #ax.plot(time[::fenetre], moy.ravel(), color="tab:orange")
         #ax.plot(time[::fenetre], moy.ravel(), color="k", ls="", marker="o", markersize=1)
         #ax2.plot(time[::fenetre], std.ravel(), color="tab:blue", alpha=0.5)
-        #ax2.plot(time[::fenetre], var.ravel(), color="tab:orange")
+        ax2.plot(time[::fenetre], var.ravel(), color="tab:orange")
         #ax2.plot(np.array([time[0], time[-1]]),np.ones(2)*varmoy, color="k" )
         #ax2.plot(np.array([time[0], time[-1]]),np.ones(2)*(varmoy+varstd*6), color="red", ls=":" )
         #ax2.axhline(varmoy, color="k")
@@ -65,7 +67,53 @@ def test() :
 
     plt.show()
 
+def test2() :
+    fichier = "../alcheData/2025-06-06_JN_Gquadexp1/DNA_10mKCl/DNA_KCl_10mM_SR1e4_500kOmhsVg0_1_long.tdms"
+    sr = int(1e4)
+
+    dataIter, nbrData = extract(fichier, sr, 3, offset=100, chunks=False)
+    dataZip = list(dataIter)[0]
+
+    windowS = 5
+
+    fig = plt.figure()
+    ax = fig.add_subplot(211)
+    ax2 = fig.add_subplot(212, sharex=ax)
+    for data, time in dataZip :
+
+        rollingData = np.lib.stride_tricks.sliding_window_view(data, windowS)
+        rollingTime = np.lib.stride_tricks.sliding_window_view(time, windowS)
+
+        rollingVar = np.var(rollingData, axis=1)
+
+        ax.plot(time, data)
+        #ax2.plot(time[windowS-1:], rollingVar)
+
+        eps = 0.85e-15
+        peaks = np.where(rollingVar > eps)
+        peaks2, _ = find_peaks(rollingVar, height=eps)
+        print(peaks2.size)
+
+        upDown = np.arange(peaks2.size)%2
+
+        gauche = time[windowS -1:][peaks2][:-1]  # aye....
+        droite = time[windowS -1:][peaks2][1:] 
+
+        upda = np.vstack((upDown, upDown)).T.ravel()[:-1]
+        upTime = np.vstack( (gauche, droite) ).T.ravel()
+        upTime = np.append( upTime, droite[-1] )
+
+        print(upTime[::-1])
+        print(peaks2)
+
+        #ax2.plot(time[windowS-1:][peaks2], rollingVar[peaks2], ls="", marker="x", markersize=1, color="red")
+        #ax2.plot(time[windowS-1:][peaks2], upDown)
+        ax2.plot(upTime, upda)
+        ax.vlines(time[windowS-1:][peaks2], 6e-7, 9.5e-7, ls=":", color="k")
+
+
+    plt.show()
 
 if __name__ == "__main__" :
-    test()
+    test2()
 
