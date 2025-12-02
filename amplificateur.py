@@ -44,8 +44,8 @@ def test() :
         indxTime = peaks * fenetre
 
         ax.plot(time, data, color="tab:blue")
-        #for i in indxTime :
-        #    ax.axvline(time[i], ls=":", color="k")
+        for i in indxTime :
+            ax.axvline(time[i], ls=":", color="k")
         ax.plot(time[::fenetre], moy.ravel(), color="tab:orange")
         #ax.plot(time[::fenetre], moy.ravel(), color="k", ls="", marker="o", markersize=1)
         #ax2.plot(time[::fenetre], std.ravel(), color="tab:blue", alpha=0.5)

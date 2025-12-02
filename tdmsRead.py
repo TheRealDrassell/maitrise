@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import nptdms
 
 # fonction «scrolling window» retourne un generator de taille N M fois
+# savoir en avance le nbr de chunks?
 
 # fichier de lecture de .tdms
 

@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 
 from tdmsRead import extract
 
+from scipy.signal import find_peaks
+
 def derv4(y, h = 1) :
     return (-y[:-4] + 8*y[1:-3] - 8 * y[3:-1] + y[4:])/(12*h)
 
@@ -17,25 +19,53 @@ def main() :
     fichier = "../alcheData/2025-06-06_JN_Gquadexp1/DNA_10mKCl/DNA_KCl_10mM_SR1e4_500kOmhsVg0_1_long.tdms"
     sr = int(1e4)
 
-    dataIter, nbrData = extract(fichier, sr, 3, chunks = True)
+    dataIter, nbrData = extract(fichier, sr, 3, offset=100, chunks = False)
     dataZip = list(dataIter)[0]
 
     #data = data[100:]
     #time = time[100:]
 
     fig = plt.figure()
-    ax = fig.add_subplot()
+    ax = fig.add_subplot(311)
+    ax2 = fig.add_subplot(312)
+    ax3 = fig.add_subplot(313)
     for data, time in dataZip :
 
-        moy = np.mean(data)
-        derv = derv4(data) * 3
+        rolling = np.lib.stride_tricks.sliding_window_view(data, 11)
+        var = np.var(rolling, axis=1)
 
-        rollingMean = np.cumsum(data) / np.arange(1, data.size + 1)
+        moyVar = np.mean(var)
+        stdVar = np.std(var)
 
-        #ax.plot(time[2:-2], derv + moy, color="tab:blue")
-        ax.plot(time, data, color="k")
-        ax.plot(np.array( [time[0], time[-1]] ), np.ones(2)*moy, color="tab:orange")
-        ax.plot(time, rollingMean, color="tab:blue")
+        peaks = np.where(var>(moyVar+stdVar*11))
+
+        derv = derv4(data) 
+        dervTime = time[2:-2]
+        varTime = time[5:-5]
+
+        ax.plot(time, data)
+        ax.vlines(dervTime[peaks], 6.5e-7, 9.5e-7, ls=":", color="k")
+
+        ax2.plot(dervTime, derv)
+
+        ax3.plot(varTime, var)
+        ax3.plot(varTime[peaks], var[peaks], ls="", marker="o", markersize=1, color="red")
+        ax3.axhline(moyVar, ls=":", color="k")
+        ax3.axhline(moyVar+stdVar*10, ls=":", color="k")
+
+        """
+        moyDerv = np.mean(derv)
+        stdDerv = np.std(derv)
+
+        peaks = np.where(np.abs(derv) > ( moyDerv + stdDerv*6 ))
+
+        ax.plot(time, data)
+        ax.vlines(dervTime[peaks], 6.5e-7, 9.5e-7, ls=":", color="k")
+
+        ax2.plot(dervTime, derv)
+        ax2.plot(dervTime[peaks], derv[peaks], ls="", marker="o", markersize=1, color="red")
+        """
+
 
 
     plt.show()
