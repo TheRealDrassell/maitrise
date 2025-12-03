@@ -5,6 +5,9 @@ from scipy.signal import find_peaks
 from tdmsRead import extract
 from main import derv4
 
+def amplificateur() :
+    pass
+
 def test() :
     fichier = "../alcheData/2025-06-06_JN_Gquadexp1/DNA_10mKCl/DNA_KCl_10mM_SR1e4_500kOmhsVg0_1_long.tdms"
     sr = int(1e4)
@@ -144,21 +147,53 @@ def test3() :
     #fichier = "../alcheData/2025-07-29_JN_Gquadexp4/10mM_KCl/10mMKCl_SR1e4_4h.tdms"
     sr = int(1e4)
 
-    dataIter, nbrData = extract(fichier, sr, [3, 1], offset=100, chunks=False)
-    dataZip = list(dataIter)
+    dataIter, nbrData = extract(fichier, sr, 3, offset=100, chunks=False)
+    dataZip = list(dataIter)[0]
 
     fig = plt.figure()
-    ax = fig.add_subplot(211)
-    ax2 = fig.add_subplot(212, sharex=ax)
+    ax = fig.add_subplot(311)
+    ax2 = fig.add_subplot(312,sharex=ax)
+    ax3 = fig.add_subplot(313,sharex=ax)
+    for data, time in dataZip :
 
-    data, time = next(dataZip[0])
-    ax.plot(time, data)
+        #ax.plot(time, data)
 
-    data, time = next(dataZip[1])
-    ax2.plot(time, data)
+        windowS = 5
+        rollingData = np.lib.stride_tricks.sliding_window_view(data, windowS)
+        rollingVar = np.var(rollingData, axis=1)
 
+        indxG = np.floor( (windowS-1)/2 ).astype(int)
+        indxD = np.ceil( (windowS-1)/2 ).astype(int)
+
+        #ampData = data[indxG:-indxD] * rollingVar
+        #derv = derv4(ampData)
+        #cs = np.cumsum(derv)
+        ampData = derv4(data) * rollingVar
+        cs = np.cumsum(ampData)
+
+        ax.plot(time, data)
+        ax2.plot(time[indxG:-(indxD)], cs)
+
+        rollingCS = np.lib.stride_tricks.sliding_window_view(cs, windowS)
+        rollingCSVAR = np.var(rollingCS, axis=1)
+
+        ax3.plot(time[indxG*2:-2*indxD], rollingCSVAR)
+
+        eps = 5.5e-46
+        peaks, _ = find_peaks(rollingCSVAR, height=eps)
+        ax3.plot(time[indxG*2:-2*indxD][peaks], rollingCSVAR[peaks], ls="", color="red", marker="x", markersize=1)
+        print(peaks.size)
+        ax2.vlines(time[indxG*2:-(indxD*2)][peaks], np.min(cs), np.max(cs), ls=":", color="k")
+        ax.vlines(time[indxG*2:-(indxD*2)][peaks], 6e-7, 9.5e-7, ls=":", color="k")
+        
+        #ax.plot(time[2:-2],derv4(data))
+
+    #ax.set_title("normal")
+    #ax2.set_title("«amplifié»")
+
+    fig.tight_layout()
     plt.show()
 
 if __name__ == "__main__" :
-    test2()
+    test3()
 

@@ -9,6 +9,8 @@ import nptdms
 
 # fichier de lecture de .tdms
 
+# return optionnel couleur
+
 
 # liste à faire
 
