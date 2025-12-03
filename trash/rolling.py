@@ -25,7 +25,7 @@ def main() :
     print((end - start)/M)
 
 
-    print(np.all( b == c ))
+ ( np.abs(sp) >= 500 )   print(np.all( b == c ))
 
 if __name__ == "__main__" :
     main()
