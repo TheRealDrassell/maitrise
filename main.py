@@ -26,11 +26,11 @@ def main() :
         iter += 1
 
         windowS = 5
-        recAmp, indx = amplificateur(data, windowS)
+        recAmp, indx = amplificateur(data, sr, windowS)
         rra, indx2 = rollingVar(recAmp, windowS)
         indx2 += indx
 
-        eps = 1e-46
+        eps = 5e-38
         #eps = np.mean(rra) + np.std(rra) * 10
         peaks, indx3 = stateChange(recAmp, windowS, eps)
         indx3 += indx
@@ -65,7 +65,7 @@ def main() :
 
         ax.vlines(time[indx2[0]:indx2[1]][peaks], data.min(), data.max(), ls=":", color="k")
         axAmp.vlines(time[indx2[0]:indx2[1]][peaks], recAmp.min(), recAmp.max(), ls=":", color="k")
-        #axAmp2.axhline(eps, ls=":", color="k")
+        axAmp2.axhline(eps, ls=":", color="k")
 
         #rVar, indx = rollingVar(derv4(data), windowS)
         #ampDD = np.cumsum(derv4(data)[2:-2] * rVar )
