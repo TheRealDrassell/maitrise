@@ -17,14 +17,21 @@ def rollingVar(data, windowS) :
     return rVar, np.array([indxG, indxD])
 
 def amplificateur(data, windowS) :
+    # derv wise ou none
 
     rVar, indx = rollingVar(data, windowS)
-    #rDVar, indx = rollingVar(derv4(data), windowS)
+    derv = derv4(data)
 
-    # windowS > 5, sinon indexer rollingVar
-    ampData = derv4(data) * rVar  #[ indx[0]-2: -(indx[1] - 2 + 1) ]   # et si variance de la derv?
-    #ampData = derv4(data)[2:-2] * rDVar#[2:-2]  # et si variance de la derv?
+    if windowS == 5:
+        ampData = derv * rVar
+    elif windowS == 3 :
+        ampData = derv * rVar[1:-1]
+        indx = np.array([2,-2])
+    else :
+        ampData = derv[indx[0]-2:indx[1]+2] * rVar
+
     reconstruction = np.cumsum(ampData)
+    #reconstruction = ampData
 
     return reconstruction, indx
 
@@ -34,13 +41,15 @@ def stateChange(data, window, eps = 5.5e-46) :
 
     return peaks, indx
 
-def fourier(data, time, cutoff = 700) :
+def npfft(data, time, cutoff = None) :
         sp = np.fft.rfft(data)
         freq = np.fft.rfftfreq(time.size, d = 1/time.size)
         ampl = np.abs(sp)
-        masque = freq < cutoff     # optimisaton machine, trouver le bon cutoff, déscente de gradient cutoff le plus bas pour le meilleur signal
-        sp_masque = sp * masque
-        req = np.fft.irfft(sp_masque)
+        if cutoff != None :
+            masque = freq < cutoff     # optimisaton machine, trouver le bon cutoff, déscente de gradient cutoff le plus bas pour le meilleur signal
+            sp *= masque
+
+        req = np.fft.irfft(sp)
 
         return req
 

@@ -2,75 +2,91 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from tdmsRead import extract
+from amplificateur import amplificateur, derv4, rollingVar, npfft, stateChange
 
 from scipy.signal import find_peaks
-
-def derv4(y, h = 1) :
-    return -(-y[:-4] + 8*y[1:-3] - 8 * y[3:-1] + y[4:])/(12*h)
-
-def rollingVar(data, windowS) :
-
-    rollingData = np.lib.stride_tricks.sliding_window_view(data, windowS)
-    rVar = np.var(rollingData, axis=1)
-
-    return rVar
 
 def main() :
     fichier = "../alcheData/2025-06-06_JN_Gquadexp1/DNA_10mKCl/DNA_KCl_10mM_SR1e4_500kOmhsVg0_1_long.tdms"
     sr = int(1e4)
 
-    dataIter, nbrData = extract(fichier, sr, 3, offset=100, chunks = True)
+    dataIter, nbrData = extract(fichier, sr, 3, offset=100, chunks = False)
     dataZip = list(dataIter)[0]
 
     fig = plt.figure()
-    ax = fig.add_subplot(211)
-    axVar = fig.add_subplot(212, sharex=ax)
-    for data, time in dataZip :
+    ax = fig.add_subplot(311)
+    axAmp = fig.add_subplot(312, sharex=ax)
+    axAmp2 = fig.add_subplot(313, sharex=ax)
+    #axHU = fig.add_subplot(325)
+    #axHD = fig.add_subplot(326)
 
-        ax.plot(time, data, color="tab:blue")
+    ales = 0
+    iter = 0
+    for data, time in dataZip :
+        iter += 1
 
         windowS = 5
-        rVar = rollingVar(data, windowS)
+        recAmp, indx = amplificateur(data, windowS)
+        rra, indx2 = rollingVar(recAmp, windowS)
+        indx2 += indx
 
-        indxG = np.floor( (windowS - 1)/2 ).astype(int)
-        indxD = np.ceil( (windowS - 1)/2 ).astype(int)
+        eps = 1e-46
+        #eps = np.mean(rra) + np.std(rra) * 10
+        peaks, indx3 = stateChange(recAmp, windowS, eps)
+        indx3 += indx
 
-        #axVar.plot(time[indxG:-indxD], rVar, color="tab:blue")
+        #print(peaks.size)
+        #print(eps + np.std(rra))
+        ales += peaks.size
+        print(iter, ales, peaks.size)
 
-        #### FFT  #####
-        sp = np.fft.rfft(data)
-        freq = np.fft.rfftfreq(time.size, d = 1/time.size)
-        ampl = np.abs(sp)
-        masque = freq < 700     # optimisaton machine, trouver le bon cutoff, déscente de gradient cutoff le plus bas pour le meilleur signal
-        sp_masque = sp * masque
-        req = np.fft.irfft(sp_masque)
+        up = []
+        down = []
+        indxLast = 0
+        stateTime = time[4:-4]
 
-        #### FFT   ######
+        for j, i in enumerate(peaks) :
+            dtime = stateTime[i] - stateTime[indxLast]
+            indxLast = i
+            
+            if j%2 :
+                up.append(dtime)
+            else :
+                down.append(dtime)
 
-        reqR = rollingVar(req, windowS)
+        up = np.array(up)
+        down = np.array(down)
+        #recFft = npfft(data, time, cutoff=15000)
 
-        eps = 1e-16
-        peaks2, _ = find_peaks(reqR, height=eps, width=2)
+        ax.plot(time, data, color="tab:blue")
+        axAmp.plot(time[indx[0]:indx[1]],recAmp, color="tab:blue")
+        axAmp2.plot(time[indx2[0]:indx2[1]], rra, color="tab:blue")
+        axAmp2.plot(time[indx2[0]:indx2[1]][peaks], rra[peaks],ls="", marker="x", markersize=1, color="red")
 
-        axVar.plot(time[indxG:-indxD], reqR, color="tab:orange")
-        axVar.plot(time[indxG:-indxD][peaks2], reqR[peaks2], ls="", marker="x", markersize=1, color="red")
-        axVar.axhline(eps, ls=":", color="k")
+        ax.vlines(time[indx2[0]:indx2[1]][peaks], data.min(), data.max(), ls=":", color="k")
+        axAmp.vlines(time[indx2[0]:indx2[1]][peaks], recAmp.min(), recAmp.max(), ls=":", color="k")
+        #axAmp2.axhline(eps, ls=":", color="k")
 
-        ax.vlines(time[indxG:-indxD][peaks2], 6e-7, 9.5e-7, ls=":", color="k")
+        #rVar, indx = rollingVar(derv4(data), windowS)
+        #ampDD = np.cumsum(derv4(data)[2:-2] * rVar )
+        #axAmp2.plot(time[4:-4], ampDD)
 
-        ax.plot(time, req, color="tab:orange")
-        #axVar.plot(freq, ampl)
+        """
+        histUp, upEdges = np.histogram(up, bins=50, range=[up.min(), 1])
+        histDown, downEdges = np.histogram(down, bins=50, range=[down.min(), 1])
 
-        windowS = 30
-        rrVar = np.lib.stride_tricks.sliding_window_view(rVar,windowS)
-        rStdVar = np.std(rrVar, axis=1)
-        rMoyVar = np.mean(rVar)
+        zerosU = (histUp==0)
+        zerosD = (histDown==0)
 
-        indxG2 = np.floor( (windowS - 1)/2 ).astype(int)
-        indxD2 = np.ceil( (windowS - 1)/2 ).astype(int)
+        axHU.plot(upEdges[1:][~zerosU],histUp[~zerosU], marker="o", markersize=2)
+        axHD.plot(downEdges[1:][~zerosD],histDown[~zerosD], marker="o", markersize=2)
 
-        #axVar.plot( time[indxG:-indxD][indxG2:-indxD2], rMoyVar + rStdVar, ls=":", color="red" )
+        axHU.semilogy()
+        axHD.semilogy()
+        """
 
+
+    fig.tight_layout()
     plt.show()
 
 if __name__ == "__main__" :
